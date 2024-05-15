@@ -22,7 +22,7 @@ export default function Home() {
   return (
     <>
     {/* ver valores */}
-   <Canvas camera={{ fov: 50, near: 1, far: 2000, position: [10, 30, 10] }}>
+   <Canvas camera={{ fov: 50, near: 1, far: 1000, position: [10, 30, 10] }}>
           <Suspense fallback={null}>
             <Model />
             To add environment effect to the model
