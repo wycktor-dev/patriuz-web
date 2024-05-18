@@ -1,34 +1,137 @@
 'use client'
 import { Box, Button, Container,FormControl,FormGroup,Input,InputLabel} from "@mui/material";
 import SendIcon from '@mui/icons-material/Send';
-import { useLoader } from "@react-three/fiber";
-import { Canvas } from "@react-three/fiber";
-import { Environment } from "@react-three/drei";
-import { Suspense } from "react";
+import { useFrame, useLoader, useThree,Canvas } from "@react-three/fiber";
+import { Environment} from "@react-three/drei";
+import { Suspense, useEffect, useState } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { motion } from "framer-motion-3d";
+import { MotionConfig } from "framer-motion";
+import { useRef, useLayoutEffect } from "react";
+// import { transition } from "./settings";
+// import { Canvas, useThree } from "@react-three/fiber";
+import { useSmoothTransform } from "./use-smooth-transform";
+import * as THREE from 'three'; // Import the 'THREE' namespace from the 'three' package
+
   const Model = () => {
     // location of the 3D model
     const gltf = useLoader(GLTFLoader, "patriuz.gltf");
     return (
       <>
         {/* Use scale to control the size of the 3D model */}
-        <primitive object={gltf.scene} scale={1.8} />
+        <primitive object={gltf.scene} scale={20} />
       </>
     );
   };
 
-export default function Home() {
+  // function Rig() {
+  //   const { camera, mouse } = useThree()
+  //   const vec = new Vector3()
+  
+  //   return useFrame(() => {
+  //     camera.position.lerp(vec.set(mouse.x, mouse.y, camera.position.z), 0.5)
+  //     camera.lookAt(0,0, 5)
+  //   })
+  // }
+  // Adapted from https://github.com/pmndrs/drei/blob/master/src/core/PerspectiveCamera.tsx
 
+export default function Home() {
+  // const lightRotateX = useSmoothTransform(mouseY, spring, mouseToLightRotation);
+  // const lightRotateY = useSmoothTransform(mouseX, spring, mouseToLightRotation);
+  const [mousePos, setMousePos] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (event : any) => {
+      setMousePos({ x: event.clientX, y: event.clientY });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      window.removeEventListener(
+        'mousemove',
+        handleMouseMove
+      );
+    };
+  }, [])
+  function Camera({ mouseX, mouseY, ...props }: { mouseX: number, mouseY: number, [key: string]: any }) {
+    const cameraX = useSmoothTransform(mouseX, spring, (x) => x / 350);
+    const cameraY = useSmoothTransform(mouseY, spring, (y) => (-1 * y) / 350);
+  
+    const set = useThree(({ set }) => set);
+   
+    const camera = useThree(({ camera }) => camera);
+    const scene = useThree(({ scene }) => scene);
+    const cameraRef = useRef<THREE.PerspectiveCamera>(null!); // Add type annotation for cameraRef
+    const size = useThree(({ size }) => size) as { width: number, height: number }; // Add type annotation for size
+
+    useLayoutEffect(() => {
+      const { current: cam } = cameraRef;
+      if (cam) {
+        cam.aspect = size.width / size.height;
+        cam.updateProjectionMatrix();
+      }
+    }, [size, props]);
+  
+    useLayoutEffect(() => {
+      if (cameraRef.current) {
+        const oldCam = camera;
+        set(() => ({ camera: cameraRef.current }));
+        return () => set(() => ({ camera: oldCam }));
+      }
+    }, [camera, cameraRef, set]);
+  
+    useLayoutEffect(() => {
+      return cameraX.onChange(() => camera.lookAt(scene.position));
+    }, [cameraX]);
+
+    return (
+      <motion.perspectiveCamera
+        // ref={cameraRef}
+        attach="tste"
+        fov={90}
+        position={[cameraX, cameraY, 3.8]}
+      />
+    );
+  }
   return (
     <>
     {/* ver valores */}
-   <Canvas camera={{ fov: 50, near: 1, far: 1000, position: [10, 30, 10] }}>
+    <h1>Teste</h1>
+    <div style={{ width: "100%", height: "50vh" }}>
+   <Canvas flat orthographic camera={{ position: [0,0, 0] }}>
+   {/* <OrthographicCamera
+        makeDefault
+        rotation={[0, Math.PI,  Math.PI]}
+        position={[240, -420, -240]}
+        near={10}
+        far={1000}
+      ></OrthographicCamera> */}
+           <MotionConfig>
+        {/* <motion.group
+          center={[0, 0, 0]}
+          rotation={[lightRotateX, lightRotateY, 0]}
+        >
+          <Lights />
+        </motion.group> */}
+        {/* <motion.group
+          initial={false}
+          animate={isHover ? "hover" : "rest"}
+          dispose={null}
+          variants={{
+            hover: { z: isPress ? -0.9 : 0 }
+          }}
+        ></motion.group> */}
+        <Camera mouseX={mousePos.x} mouseY={mousePos.y} />
           <Suspense fallback={null}>
             <Model />
-            To add environment effect to the model
             <Environment preset="city" />
+            {/* <Rig /> */}
           </Suspense>
+
+          </MotionConfig>
         </Canvas>
+      </div>
       {/* <Box className="flex justify-center"><img src="patriuz.png" alt="Patriuz logo"/></Box> */}
               <h1 className="text-center text-4xl">Digite aqui embaixo</h1>
                 <Container className="flex justify-center w-96">
@@ -140,3 +243,8 @@ export default function Home() {
 //     </main>
 //   );
 // }
+
+
+const spring = { stiffness: 600, damping: 30 };
+
+const mouseToLightRotation = (v: number) => (-1 * v) / 140;
